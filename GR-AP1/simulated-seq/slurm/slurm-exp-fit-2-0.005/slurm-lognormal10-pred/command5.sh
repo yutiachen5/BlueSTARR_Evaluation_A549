@@ -1,0 +1,2 @@
+#!/bin/sh
+python /datacommons/igvf-pm/K562/leave-one-out/BlueSTARR/test-variants-ref.py /datacommons/igvf-pm/A549/GR-AP1/simulated-seq/slurm/slurm-exp-fit-2-0.005/slurm-lognormal10-train/outputs/Dex-200-lognormal10-0.005-5 /datacommons/igvf-pm/A549/GR-AP1/simulated-seq/data/Dex-200/low_act_5000_test.txt /datacommons/igvf-pm/A549/GR-AP1/simulated-seq/data/exp-fit-2/low_act_5000_test_pred_lognormal_5.txt

@@ -1,0 +1,265 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-02-03"
+---
+
+```{r setup, include=FALSE}
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r}
+A549_plot = function(pred_path, actual_path, tittle){
+  df_pred = read.table(pred_path,
+                       header = FALSE, sep = "\t")
+  colnames(df_pred) = c('pos','pred','seq')
+  df_pred$log2_theta = log2(exp(df_pred$pred)) # predictions are on log scale
+   
+  df_act = read.table(gzfile(actual_path),
+                      header = FALSE, sep = "\t", skip = 1)
+  colnames(df_act) = c('DNA1','DNA2','DNA3','DNA4','DNA5','RNA2','RNA3','RNA4','RNA5')
+  df_act$log2_theta = log2(((df_act$RNA2+df_act$RNA3+df_act$RNA4+df_act$RNA5)/4)/
+                    ((df_act$DNA1+df_act$DNA2+df_act$DNA3+df_act$DNA4+df_act$DNA5)/5))
+
+  pcc = cor(df_act$log2_theta, df_pred$log2_theta, method = 'pearson')
+  scc = cor(df_act$log2_theta, df_pred$log2_theta, method = 'spearman')
+  mse = mean((df_act$log2_theta - df_pred$log2_theta)^2)
+  
+  df = data.frame(pred_theta = df_pred$log2_theta,
+                  actual_theta = df_act$log2_theta)
+    
+  # Make plot
+  p = ggplot(df, aes(x = actual_theta, y = pred_theta)) +
+    # 1) Add faint points
+    geom_point(color="gray60", size=0.8) +
+    
+    # 2) Overlay 2D density contours as shading
+    stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.3) +
+    scale_fill_gradient(low = "grey50", high = "grey20", name="Density") +
+    
+    # 3) Reference line y = x
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color="gray40") +
+    
+    # 4) Annotate the Pearson correlation in the upper-left
+    annotate("text", x = -3, y = 9, 
+             label = paste0("PCC: ", round(pcc, 2)),
+             color = "black", size = 5, hjust = 0) +
+    annotate("text", x = -3, y = 8, 
+             label = paste0("SCC: ", round(scc, 2)), 
+             color = "black", size = 5, hjust = 0) +
+    annotate("text", x = -3, y = 7, 
+             label = paste0("MSE: ", round(mse, 2)), 
+             color = "black", size = 5, hjust = 0) +
+    
+    # 5) Labels & theme
+    xlab("log2(Theta)") +
+    ylab("log2(Predicted theta)") +
+    xlim(-3, 7.5) +
+    ylim(-2, 15) +
+    ggtitle(tittle) +
+    theme_bw(base_size = 14) +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 16),
+        plot.title.position = "plot",
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.ticks = element_line(color = "black")
+      )
+  return (p)
+}
+
+```
+
+```{r}
+# p1 = A549_plot('/work/igvf-pm/A549/GR-AP1/enhancer-seq2/data-unbiased/Dex-test-custom-pred.txt',
+#           '/work/igvf-pm/A549/full-set/Dex-200/300-bases/data-normalized/test-counts.txt.gz',
+#           'A549.Dex-custom-unbised-normalized')
+
+p2 = A549_plot('/work/igvf-pm/A549/GR-AP1/enhancer-seq2/data-unbiased/Dex-test-mse-pred.txt',
+          '/work/igvf-pm/A549/full-set/Dex-200/300-bases/data-normalized/test-counts.txt.gz',
+          'Dex-300-5layers')
+
+# p3 = A549_plot('/work/igvf-pm/A549/GR-AP1/enhancer-seq2/data-unbiased/DMSO-test-custom-pred.txt',
+#           '/work/igvf-pm/A549/full-set/DMSO-200/300-bases/data-normalized/test-counts.txt.gz',
+#           'A549.DMSO-custom-unbised-normalized')
+
+p4 = A549_plot('/work/igvf-pm/A549/GR-AP1/enhancer-seq2/data-unbiased/DMSO-test-mse-pred.txt',
+          '/work/igvf-pm/A549/full-set/DMSO-200/300-bases/data-normalized/test-counts.txt.gz',
+          'DMSO-300-5layers')
+#p1
+p2
+#p3
+p4
+#grid.arrange(p1, p2, p3, p4, ncol=2, nrow=2)
+```
+
+```{r, warning=FALSE, message=FALSE}
+K562_plot = function(path, tittle, loss){
+  df = read.table(path, header = FALSE, sep = "\t", skip=1)
+  colnames(df) = c('actual','pred')
+
+  if (loss == 'mse'){
+    df$log2_theta_pred = log2(df$pred)
+    df$log2_theta_act = log2(df$act)   
+  }
+  else if (loss == 'custom'){
+    df$log2_theta_pred = log2(exp(df$pred))
+    df$log2_theta_act = log2(df$act)   
+  }
+
+  pcc = cor(df$log2_theta_pred, df$log2_theta_act, method = 'pearson')
+  scc = cor(df$log2_theta_pred, df$log2_theta_act, method = 'spearman')
+  mse = mean((df$log2_theta_pred - df$log2_theta_act)^2)
+  
+    
+  # Make plot
+  p = ggplot(df, aes(x = log2_theta_act, y = log2_theta_pred)) +
+    # 1) Add faint points
+    geom_point(color="gray60", size=0.8) +
+    
+    # 2) Overlay 2D density contours as shading
+    stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.3) +
+    scale_fill_gradient(low = "grey50", high = "grey20", name="Density") +
+    
+    # 3) Reference line y = x
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color="gray40") +
+    
+    # 4) Annotate the Pearson correlation in the upper-left
+    annotate("text", x = -3, y = 10, 
+             label = paste0("PCC: ", round(pcc, 2)),
+             color = "black", size = 5, hjust = 0) +
+    annotate("text", x = -3, y = 8.5, 
+             label = paste0("SCC: ", round(scc, 2)), 
+             color = "black", size = 5, hjust = 0) +
+    annotate("text", x = -3, y = 7, 
+             label = paste0("MSE: ", round(mse, 2)), 
+             color = "black", size = 5, hjust = 0) +
+    
+    # 5) Labels & theme
+    xlab("log2(Theta)") +
+    ylab("log2(Predicted theta)") +
+    ggtitle(tittle) +
+    theme_bw(base_size = 14) +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 16),
+        plot.title.position = "plot",
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.ticks = element_line(color = "black")
+      )
+  return (p)
+}
+```
+
+```{r}
+p1 = K562_plot('/work/igvf-pm/K562/mdl_eval/slurms/outputs/K562-unbiased-mse.txt',
+          'K562-mse-unbiased-normalized','mse')
+p2 = K562_plot('/work/igvf-pm/K562/mdl_eval/slurms/outputs/K562-unbiased-custom.txt',
+          'K562-custom-unbiased-normalized','custom')
+p1
+p2
+# grid.arrange(p1, p2, ncol=2, nrow=1)
+```
+
+```{r}
+A549_plot = function(path, tittle){
+  df = read.table(path, header = FALSE, sep = "\t",skip=1)
+  colnames(df) = c('idx','true','pred') # log scale true and pred thetas
+
+  
+  # transformation - log2
+  df$log2_theta_true = log2(exp(df$true))
+  df$log2_theta_pred = log2(exp(df$pred))
+
+
+  pcc = cor(df$log2_theta_true, df$log2_theta_pred, method = 'pearson')
+  scc = cor(df$log2_theta_true, df$log2_theta_pred, method = 'spearman')
+  mse = mean((df$log2_theta_true - df$log2_theta_pred)^2)
+  
+    
+  p = ggplot(df, aes(x = log2_theta_true, y = log2_theta_pred)) +
+    geom_point(color="gray60", size=0.8) +
+    stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.3) +
+    scale_fill_gradient(low = "grey50", high = "grey20", name="Density") +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color="gray40") +
+    
+    annotate("text", x = -6, y = 9, 
+             label = paste0("PCC: ", round(pcc, 2)),
+             color = "black", size = 3, hjust = 0) +
+    annotate("text", x = -6, y = 8, 
+             label = paste0("SCC: ", round(scc, 2)), 
+             color = "black", size = 3, hjust = 0) +
+    annotate("text", x = -6, y = 7, 
+             label = paste0("MSE: ", round(mse, 2)), 
+             color = "black", size = 3, hjust = 0) +
+    
+    xlab("log2(Theta)") +
+    ylab("log2(Predicted theta)") +
+    # xlim(-3, 7.5) +
+    # ylim(-2, 15) +
+    ylim(-5, 15) +
+    xlim(-8, 8) +
+    ggtitle(tittle) +
+    theme_bw(base_size = 14) +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 16),
+        plot.title.position = "plot",
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.ticks = element_line(color = "black"),
+        legend.key.size = unit(0.25, "cm"),  # Size of the color bar
+        legend.text = element_text(size = 8),  # Adjust legend text size
+        legend.title = element_text(size = 7) 
+      )
+  return (p)
+}
+
+```
+
+```{r}
+p1 = A549_plot('/work/igvf-pm/A549/full-set/Dex-200/600-bases/saved_models/Dex-10-layers.txt', 'Dex-600bp-10layers')
+p2 = A549_plot('/work/igvf-pm/A549/full-set/Dex-200/300-bases/saved_models/Dex-10-layers.txt','Dex-300-10-layers')
+p3 = A549_plot('/work/igvf-pm/A549/full-set/DMSO-200/300-bases/saved_models/DMSO-10-layers.txt', 'DMSO-300bp-10layers')
+p4 = A549_plot('/work/igvf-pm/A549/full-set/DMSO-200/600-bases/saved_models/DMSO-10-layers.txt', 'DMSO-600bp-10layers')
+p1
+p2
+p3
+p4
+```
+
+```{r}
+labels = c('AZD2906','AZD9567','CORT108297','CpdA','GW870086','Hydrocortisone','Mapracorat','RU486','ZK216348')
+# labels = c('AZD2906')
+dir = '/work/igvf-pm/A549/extra_GCs/'
+for (i in 1:length(labels)){
+  print(labels[i])
+  # unnormalized + unbiased
+  p1 = A549_plot(paste0(dir, labels[i], '/train/', labels[i], '.txt'), '') 
+  # normalized + unbiased
+  p2 = A549_plot(paste0(dir, labels[i], '/train/', labels[i], '-normalized.txt'), '')
+  # normalized + biased
+  p3 = A549_plot(paste0(dir, labels[i], '/train/', labels[i], '-biased.txt'), '')
+  # grid.newpage()
+  # pushViewport(viewport(width = 0.8, height = 0.6))
+  grid.arrange(p1, p2, p3, ncol=3, nrow=1, widths=c(1,1,1), heights=c(0.6))
+  # ggarrange(p1, p2, p3, ncol = 3, nrow = 1, widths = c(1, 1, 1), heights = c(1))
+
+}
+
+
+
+
+
+
+```
+

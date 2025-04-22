@@ -1,0 +1,224 @@
+---
+title: "A549_extra_GCs"
+output: html_document
+date: "2025-02-10"
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(reshape2)
+```
+
+
+```{r echo=FALSE}
+scatter_plot = function(path, tittle){
+  df = read.table(path, header = FALSE, sep = "\t",skip=1)
+  colnames(df) = c('idx','true','pred') # log scale true and pred thetas
+
+  
+  # transformation - log2
+  df$log2_theta_true = log2(exp(df$true))
+  df$log2_theta_pred = log2(exp(df$pred))
+
+
+  pcc = cor(df$log2_theta_true, df$log2_theta_pred, method = 'pearson')
+  scc = cor(df$log2_theta_true, df$log2_theta_pred, method = 'spearman')
+  mse = mean((df$log2_theta_true - df$log2_theta_pred)^2)
+  
+    
+  p = ggplot(df, aes(x = log2_theta_true, y = log2_theta_pred)) +
+    geom_point(color="gray60", size=0.8) +
+    stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.3) +
+    scale_fill_gradient(low = "grey50", high = "grey20", name="Density") +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color="gray40") +
+    
+    annotate("text", x = -6, y = 9, 
+             label = paste0("PCC: ", round(pcc, 2)),
+             color = "black", size = 3, hjust = 0) +
+    annotate("text", x = -6, y = 8, 
+             label = paste0("SCC: ", round(scc, 2)), 
+             color = "black", size = 3, hjust = 0) +
+    annotate("text", x = -6, y = 7, 
+             label = paste0("MSE: ", round(mse, 2)), 
+             color = "black", size = 3, hjust = 0) +
+    
+    xlab("log2(Theta)") +
+    ylab("log2(Predicted theta)") +
+    ylim(-5, 15) +
+    xlim(-8, 8) +
+    ggtitle(tittle) +
+    theme_bw(base_size = 14) +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 10),
+        plot.title.position = "plot",
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.ticks = element_line(color = "black"),
+        legend.key.size = unit(0.25, "cm"),  # Size of the color bar
+        legend.text = element_text(size = 8),  # Adjust legend text size
+        legend.title = element_text(size = 7) 
+      )
+  return (p)
+}
+
+get_optim_run = function(in_path, label){
+
+  res2 = get_min_mse(list.files(path = in_path, pattern = "\\.txt$", full.names = TRUE), label)
+  min_mse_row = which.min(res2$df$MSE)
+  t2 = tableGrob(res2$df, theme = ttheme_default(
+    core = list(bg_params = list(fill = ifelse(1:nrow(res2$df) == min_mse_row, "red", "grey80"))),
+    rowhead = list(fg_params = list(cex = 0))  # Hide row index
+  ))
+  p2 = scatter_plot(res2$path, 'normalized+unbiased')
+  v2 = get_val_loss(list.files(path = in_path, pattern = "\\.out$", full.names = TRUE), res2$path, label)
+
+  
+  return (list(p2, t2, v2))
+
+}
+
+
+
+get_min_mse = function(files, label){
+  
+  min_mse = 1000
+  min_run = ''
+  
+  pcc = c(rep(0, length(files)))
+  scc = c(rep(0, length(files)))
+  mse = c(rep(0, length(files)))
+  name = c(rep(0, length(files)))
+  
+  i = 1
+  for (file in files) {
+    df = read.table(file, header = FALSE, sep = "\t", skip=1)
+    colnames(df) = c('idx','true','pred') # log scale true and pred thetas
+  
+    # transformation - log2
+    df$log2_theta_true = log2(exp(df$true))
+    df$log2_theta_pred = log2(exp(df$pred))
+    
+    pcc[i] = round(cor(df$log2_theta_true, df$log2_theta_pred, method = 'pearson'), 2)
+    scc[i] = round(cor(df$log2_theta_true, df$log2_theta_pred, method = 'spearman'), 2)
+    mse[i] = round(mean((df$log2_theta_true - df$log2_theta_pred)^2), 2)  
+    name[i] = as.numeric(gsub(paste0(".*/", label, "-([0-9]+)\\.txt$"), "\\1", file))
+
+    if (is.na(mse[i])==FALSE) {
+      if (mse[i] < min_mse) {
+        min_mse = mse[i]
+        min_run = file
+      }
+    }
+    
+    i = i+1
+  }
+  res = data.frame(Run = name, MSE = mse, PCC = pcc, SCC = scc)
+  rownames(res) = NULL
+  res = res[order(res$Run), ]
+  return (list(df = res, path = min_run))
+}
+
+get_val_loss = function(files, min_run, label){
+  min_run_num = as.numeric(gsub(paste0(".*/", label, "-([0-9]+)\\.txt$"), "\\1", min_run))
+
+  name = c(rep(0, length(files)))
+  grp = c(rep(0, length(files)))
+  val_loss = vector('list', length = length(files))
+  i = 1
+  
+  for (file in files) {
+    lines = readLines(file)
+    val_line = grep("val_loss \\[", lines, value = TRUE)
+    val_loss[[i]] = as.numeric(unlist(regmatches(val_line, gregexpr("[0-9\\.eE+-]+", val_line))))
+    name[i] = as.numeric(gsub(paste0(".*/([0-9]+)\\.out$"), "\\1", file))
+    if (name[i] == min_run_num) {grp[i] = 1}
+    else {grp[i] = 0}
+    
+    i = i+1
+  }
+  max_epoch = max(sapply(val_loss, length))
+
+  # pad
+  for (i in seq_along(val_loss)) {
+    val_loss[[i]] = c(val_loss[[i]], rep(NA, max_epoch - length(val_loss[[i]])))
+  }
+  df = as.data.frame(do.call(cbind, val_loss))
+  colnames(df) = name  # Label each run
+  df$Epoch = 1:nrow(df)
+
+
+  df_melt = melt(df, id.vars = "Epoch", variable.name = "Run", value.name = "Val_Loss")
+  df_melt$grp = rep(grp, each = max_epoch)
+  df_melt$grp <- factor(df_melt$grp, 
+                        levels = c("0", "1"), 
+                        labels = c("Others", paste0("Best: ", min_run_num)))  # Dynamically add run number
+  
+  color_map = setNames(c("black", "red"), c("Others", paste0("Best: ", min_run_num)))
+  
+  val_plot = ggplot(df_melt, aes(x = Epoch, y = Val_Loss, color = grp, group = Run)) +
+    geom_line(size = 0.5, na.rm = TRUE) +  # Ignore NA values
+    labs(x = "Epoch", y = "Validation Loss", color = NULL) +  
+    scale_color_manual(values = color_map) +  
+    theme_minimal() +
+    theme(legend.position = c(1, 1),
+          legend.justification = c(1, 1), 
+          legend.text = element_text(size = 8),  # Adjust text size
+          legend.key.size = unit(0.8, "cm"))
+  
+  return (val_plot)
+}
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# A549
+dir = '/work/igvf-pm/A549/extra_GCs/600bp/slurms/'
+# labels = c('AZD2906','AZD9567','CORT108297','CpdA','GW870086','Hydrocortisone',
+#            'Mapracorat','RU486','ZK216348')
+
+for (i in 1:length(labels)){
+  print(labels[i])
+  res1 = get_optim_run(paste0(dir,'train-unbiased/',labels[i],'/outputs'), labels[i])
+  res2 = get_optim_run(paste0(dir, 'train-unbiased-normalized/',labels[i],'/outputs'), labels[i])
+  res3 = get_optim_run(paste0(dir, 'train-biased-normalized/',labels[i],'/outputs'), labels[i])
+  
+  grid.arrange(res1[[1]], res1[[2]], res1[[3]], ncol=3, nrow=1, widths=c(2,2,2), heights=c(0.6))
+  grid.arrange(res2[[1]], res2[[2]], res2[[3]], ncol = 3, nrow = 1, widths = c(2, 2, 2), heights = c(0.6))
+  grid.arrange(res3[[1]], res3[[2]], res3[[3]], ncol = 3, nrow = 1, widths = c(2, 2, 2), heights = c(0.6))
+}
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+# K562
+
+dir = '/work/igvf-pm/K562/full-set/600bp/thres_dna_only/slurms/'
+labels = c('K562')
+
+for (i in 1:length(labels)){
+  print(labels[i])
+  res1 = get_optim_run(paste0(dir, 'train-unbiased-normalized/outputs/'), labels[i])
+
+  grid.arrange(res1[[1]], res1[[2]], res1[[3]], ncol=3, nrow=1, widths=c(2,2,2), heights=c(0.6))
+
+}
+```
+
+```{r, message=FALSE, warning=FALSE}
+# K562-300bp
+res1 = get_optim_run('/work/igvf-pm/K562/full-set/300bp/slurms/train-unbiased-normalized/outputs/', 'K562')
+grid.arrange(res1[[1]], res1[[2]], res1[[3]], ncol=3, nrow=1, widths=c(2,2,2), heights=c(0.6))
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# A549-DMSO + Dex
+res1 = get_optim_run('/work/igvf-pm/A549/full-set/DMSO-200/300-bases/slurms/train-unbiased-normalized/outputs', 'DMSO')
+grid.arrange(res1[[1]], res1[[2]], res1[[3]], ncol=3, nrow=1, widths=c(2,2,2), heights=c(0.6))
+
+res1 = get_optim_run('/work/igvf-pm/A549/full-set/Dex-200/300-bases/slurms/train-unbiased-normalized/outputs', 'Dex')
+grid.arrange(res1[[1]], res1[[2]], res1[[3]], ncol=3, nrow=1, widths=c(2,2,2), heights=c(0.6))
+```

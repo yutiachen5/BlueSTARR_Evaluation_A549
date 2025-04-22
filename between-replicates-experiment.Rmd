@@ -1,0 +1,191 @@
+
+---
+title: "Between Replicates Experiment"
+output: html_document
+---
+
+```{r}
+set.seed(123)
+# library size
+
+# K562
+input_rep1 = 123384250
+input_rep2 = 130680200
+input_rep3 = 134539576
+
+output_rep1 = 116270841
+output_rep2	= 217503220
+output_rep3	= 219086330
+
+# A549
+lib_size = read.table("/work/igvf-pm/A549/extra_GCs/A549.starrseq.GR_agonists.lib_sizes.txt", 
+                       sep = " ", header = FALSE, col.names = c("size", "rep"))
+lib_size_dict = setNames(lib_size$size, lib_size$rep)
+```
+
+```{r}
+plots_K562 = function(df, title){
+  par(mfrow=c(1,3), mar=c(3, 3, 1, 1), mgp=c(2, 1, 0), oma = c(0, 0, 2, 0))
+
+  plot(df$rep1, df$rep2, main=paste("rho=",rho_cal(df$rep1, df$rep2)), xlab="Replicate1", ylab="Replicate2")
+  abline(a=0, b=1, col="red")
+
+  plot(df$rep1, df$rep3, main=paste("rho=",rho_cal(df$rep1, df$rep3)), xlab="Replicate1", ylab="Replicate3")
+  abline(a=0, b=1, col="red")
+
+  plot(df$rep2, df$rep3, main=paste("rho=",rho_cal(df$rep2, df$rep3)), xlab="Replicate2", ylab="Replicate3")
+  abline(a=0, b=1, col="red")
+  
+  mtext(title, outer = TRUE)
+}
+
+plots_A549 = function(df, title){
+  par(mfrow=c(2,3), mar=c(3, 3, 1, 1), mgp=c(2, 1, 0), oma = c(0, 0, 2, 0))
+
+  plot(df$rep2, df$rep3, main=paste("rho=",rho_cal(df$rep2, df$rep3)), xlab="Replicate2", ylab="Replicate3")
+  abline(a=0, b=1, col="red")
+
+  plot(df$rep2, df$rep4, main=paste("rho=",rho_cal(df$rep2, df$rep4)), xlab="Replicate2", ylab="Replicate4")
+  abline(a=0, b=1, col="red")
+
+  plot(df$rep2, df$rep5, main=paste("rho=",rho_cal(df$rep2, df$rep5)), xlab="Replicate2", ylab="Replicate5")
+  abline(a=0, b=1, col="red")
+  
+  plot(df$rep3, df$rep4, main=paste("rho=",rho_cal(df$rep3, df$rep4)), xlab="Replicate3", ylab="Replicate4")
+  abline(a=0, b=1, col="red")
+  
+  plot(df$rep3, df$rep5, main=paste("rho=",rho_cal(df$rep3, df$rep5)), xlab="Replicate3", ylab="Replicate5")
+  abline(a=0, b=1, col="red")
+  
+  plot(df$rep4, df$rep5, main=paste("rho=",rho_cal(df$rep4, df$rep5)), xlab="Replicate4", ylab="Replicate5")
+  abline(a=0, b=1, col="red")
+  
+  mtext(title, outer = TRUE)
+}
+
+rho_cal = function(x,y){
+  return (round(cor(x,y,method = "spearman"),2))
+}
+
+read_K562 = function(dir){
+  df = read.table(gzfile(dir), sep="\t", header=TRUE)
+  df = na.omit(df)
+  
+  num_dna = 3
+
+  # normalize counts
+  c = 10**6
+  df$input_rep1 = df$input_rep1/input_rep1*c
+  df$input_rep2 = df$input_rep2/input_rep2*c
+  df$input_rep3 = df$input_rep3/input_rep3*c
+  df$output_rep1 = df$output_rep1/output_rep1*c
+  df$output_rep2 = df$output_rep2/output_rep2*c
+  df$output_rep3 = df$output_rep3/output_rep3*c
+  
+
+  df$DNA_aver = (df$input_rep1+df$input_rep2+df$input_rep1)/num_dna
+  
+  df$rep1 = df$output_rep1/df$DNA_aver
+  df$rep2 = df$output_rep2/df$DNA_aver
+  df$rep3 = df$output_rep3/df$DNA_aver
+  
+  subset =  df[sample(nrow(df), 100000), ]
+  
+  return (subset)
+}
+
+read_A549 = function(dir, label){
+  df = read.table(gzfile(dir), sep="\t", header=TRUE)
+  
+  num_dna = 5
+
+  # normalize counts
+  c = 10**6
+  df$input_rep1 = df$input_rep1/lib_size_dict[['Input1']]*c
+  df$input_rep2 = df$input_rep2/lib_size_dict[['Input2']]*c
+  df$input_rep3 = df$input_rep3/lib_size_dict[['Input3']]*c
+  df$input_rep4 = df$input_rep4/lib_size_dict[['Input4']]*c
+  df$input_rep5 = df$input_rep5/lib_size_dict[['Input5']]*c
+  
+
+  # Normalize A549 label-specific replicates
+  df[[paste0("A549_", label, "_rep2")]] = df[[paste0("A549_", label, "_rep2")]]/lib_size_dict[[paste0("TFX2_", label)]]*c
+  df[[paste0("A549_", label, "_rep3")]] = df[[paste0("A549_", label, "_rep3")]]/lib_size_dict[[paste0("TFX3_", label)]]*c
+  df[[paste0("A549_", label, "_rep4")]] = df[[paste0("A549_", label, "_rep4")]]/lib_size_dict[[paste0("TFX4_", label)]]*c
+  df[[paste0("A549_", label, "_rep5")]] = df[[paste0("A549_", label, "_rep5")]]/lib_size_dict[[paste0("TFX5_", label)]]*c
+
+  df$DNA_aver = (df$input_rep1+df$input_rep2+df$input_rep3+df$input_rep4+df$input_rep5)/num_dna
+  
+  df$rep2 = df[[paste0("A549_", label, "_rep2")]]/df$DNA_aver
+  df$rep3 = df[[paste0("A549_", label, "_rep3")]]/df$DNA_aver
+  df$rep4 = df[[paste0("A549_", label, "_rep4")]]/df$DNA_aver
+  df$rep5 = df[[paste0("A549_", label, "_rep5")]]/df$DNA_aver
+  
+  subset =  df[sample(nrow(df), 100000), ]
+  # subet = df[1:100000]
+  
+  return (subset)
+}
+```
+
+```{r echo=FALSE}
+df = read_K562("/work/igvf-pm/K562/combined.input_and_output.gt_100.log2FC.sequence.txt.gz")
+plots_K562(df,'K562 300bp')
+rm(df)
+```
+
+
+```{r echo=FALSE}
+df = read_K562("/work/igvf-pm/K562/K562.combined.input_and_output.w600s50.gt_200.log2FC.sequence.txt.gz")
+plots_K562(df,'K562 600bp')
+rm(df)
+```
+
+```{r echo=FALSE}
+df = read_K562("/work/igvf-pm/K562/full-set/600bp/K562.combined.input_and_output.w600s50.gt_200.thres_dna_only.log2FC.sequenc.na_removed.txt.gz")
+plots_K562(df,'K562 600bp DNA thres only')
+rm(df)
+```
+
+```{r echo=FALSE}
+df = read_A549("/work/igvf-pm/alex_b/starrseq_A549_Dex_DMSO/A549.Dex.combined.input_and_output.log2FC.gt_200.sequence.txt.gz",'Dex')
+plots_A549(df,'A549 Dex 300')
+rm(df)
+```
+
+```{r echo=FALSE}
+df = read_A549("/work/igvf-pm/alex_b/starrseq_A549_Dex_DMSO/A549.Dex.combined.input_and_output.w600s50.log2FC.gt_200.sequence.final.txt.gz",'Dex')
+plots_A549(df,'A549 Dex 600')
+rm(df)
+```
+
+```{r echo=FALSE}
+df = read_A549("/work/igvf-pm/alex_b/starrseq_A549_Dex_DMSO/A549.DMSO.combined.input_and_output.log2FC.gt_200.sequence.txt.gz",'DMSO')
+plots_A549(df,'A549 DMSO 300')
+rm(df)
+```
+
+```{r echo=FALSE}
+df = read_A549("/work/igvf-pm/alex_b/starrseq_A549_Dex_DMSO/A549.DMSO.combined.input_and_output.w600s50.log2FC.gt_200.sequence.final.txt.gz",'DMSO') 
+plots_A549(df,'A549 DMSO 600')
+rm(df)
+```
+
+```{r echo=FALSE}
+labels = c('AZD2906','AZD9567','CORT108297','CpdA','GW870086','Hydrocortisone','Mapracorat','RU486','ZK216348')
+
+for (i in 1:length(labels)){
+  dir = paste0('/work/igvf-pm/alex_b/starrseq_A549_extra_GCs/A549.',labels[i],'.combined.input_and_output.w300s50.log2FC.gt_200.sequence.final.txt.gz')
+  df = read_A549(dir,labels[i])
+  title = paste0('A549 ',labels[i],' 300')
+  plots_A549(df,title)
+  rm(df)
+  
+  dir = paste0('/work/igvf-pm/alex_b/starrseq_A549_extra_GCs/A549.',labels[i],'.combined.input_and_output.w600s50.log2FC.gt_200.sequence.final.txt.gz')
+  df = read_A549(dir,labels[i])
+  title = paste0('A549 ',labels[i],' 600')
+  plots_A549(df,title)
+  rm(df)
+}
+```
+
