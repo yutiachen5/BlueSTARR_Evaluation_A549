@@ -111,13 +111,10 @@ def summary_statistics(X, Y, set, taskNum, numTasks, taskName, model, idx, model
     pred = model.predict(X, batch_size=config.BatchSize)
     if (config.useCustomLoss) :
         naiveTheta, cor=naiveCorrelation(Y,pred,taskNum,numTasks) # naiveTheta: normal scale, pred: log scale
-        mse = np.mean((df['true'] - df['predicted'])**2)
     else:
         cor=stats.spearmanr(tf.math.exp(pred.squeeze()),tf.math.exp(Y))
-        mse = np.mean((df['true'] - df['predicted'])**2)
     
     print(taskName+" rho=",cor.statistic,"p=",cor.pvalue)
-    print(taskName+' mse=', mse)
 
 
     

@@ -287,9 +287,9 @@ def insert_motifs(df, act_func, seq_len=300):
     elif act_func == 'cliff':
         score = cliff_activation(np.asarray(ls_dist),
                                 y_max=10,
-                                y_min=1,
+                                y_min=4,
                                 x_intersection=25,
-                                y_intersection=2.5,
+                                y_intersection=6,
                                 x_min=10,
                                 x_max=300) 
     elif act_func == 'hill':
@@ -338,7 +338,7 @@ def main(indir, outdir, p, act_func):
     low_act_seq = low_act_seq.reset_index(drop=True)
     rdm_seq = rdm_seq.reset_index(drop=True)
 
-    # concat p*100% low-activation sequence and (1-p)*100% random sequence to be training set for downsampling
+    # concat p% low-activation sequence and (1-p)% random sequence to be training set for downsampling
     low_act_seq = insert_motifs(low_act_seq, act_func)
     rdm_seq.loc[:, 'score'] = list(lognorm(s=1, scale=np.exp(0)).rvs(size=len(rdm_seq)))
     all_train = pd.concat([low_act_seq, rdm_seq], axis=0, ignore_index=True)
@@ -351,15 +351,15 @@ def main(indir, outdir, p, act_func):
 
     write(test, outdir+'/test')
     write(validation, outdir+'/validation')
-    write(all_train, outdir+'/all-train-'+str(p))
+    write(all_train, outdir+'/all-train-'+str(round(p*100, 1)))
 
 
 if(len(sys.argv)!=5):
     exit(ProgramName.get()+" <indir> <outdir> <p:percent of positive samples> <act-func: v-shape, exp-fit-1,  exp-fit-2, mound, bowl, periodicity, cliff, hill>\n")
 (indir, outdir, p, act_func)=sys.argv[1:]
-main(indir, outdir, float(p), act_func)
+main(indir, outdir, float(p)/100, act_func)
 
-# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/mound 0.005 mound
-# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/cliff 0.005 cliff
-# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/bowl 0.005 bowl
-# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/periodicity 0.005 periodicity
+# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/mound 0.5 mound
+# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/cliff 0.5 cliff
+# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/bowl 0.5 bowl
+# python /hpc/group/igvf/A549/GR-AP1/simulated-seq/prepare-input.py /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/Dex-200 /hpc/group/igvf/A549/GR-AP1/simulated-seq/data/periodicity 0.5 periodicity
