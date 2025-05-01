@@ -338,7 +338,6 @@ def main(indir, outdir, p, act_func):
     low_act_seq = low_act_seq.reset_index(drop=True)
     rdm_seq = rdm_seq.reset_index(drop=True)
 
-    # concat p% low-activation sequence and (1-p)% random sequence to be training set for downsampling
     low_act_seq = insert_motifs(low_act_seq, act_func)
     rdm_seq.loc[:, 'score'] = list(lognorm(s=1, scale=np.exp(0)).rvs(size=len(rdm_seq)))
     all_train = pd.concat([low_act_seq, rdm_seq], axis=0, ignore_index=True)
