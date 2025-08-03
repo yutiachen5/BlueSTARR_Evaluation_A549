@@ -21,7 +21,14 @@ GR-AP1/ref-seq/*
 GR-AP1/simulated-seq/.ipynb_checkpoints/*
 GR-AP1/simulated-seq/data/*
 GR-AP1/simulated-seq/srikar/*
-leave-one-out/*
+leave-one-out/Dex-200/300-bases/data/*
+leave-one-out/Dex-200/300-bases/data-normalized/*
+leave-one-out/Dex-200/600-bases/data-normalized/*
+leave-one-out/DMSO-200/300-bases/data/*
+leave-one-out/DMSO-200/300-bases/data-normalized/*
+leave-one-out/DMSO-200/600-bases/data-normalized/*
+
+
 processed-data/*
 theta-plots/*
 
