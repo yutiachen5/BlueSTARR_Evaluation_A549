@@ -5,13 +5,13 @@ Internship with Duke IGVF (2024-2025).
 
 
 
-### data processing for other A549 treatments
- - [extra drugs](extra_GCs)
+### Data processing of other A549 treatments
+ - [extra drugs](extra_GCs/)
 
-### motif soft syntax experiment using real signal and simulated signal for motif GR and AP1
+### Motif soft syntax experiment using motif pair GR and AP1
  - [GR-AP1 experiment](GR-AP1/)
 
-### data preparation and model evaluation: 
+### Data preparation and model evaluation of treatment Dex and DMSO
  - [leave-one-chr-out](leave-one-out/) 
  - [random split](full-set/)
 
